@@ -7,8 +7,11 @@ from .models import Submission
 from .nosql import save_raw
 from .services import recompute, render
 
-celery = Celery("grader", broker=settings.redis_url, backend=settings.redis_url)
-
+celery = Celery(
+    "grader",
+    broker=settings.redis_url,
+    backend=settings.redis_url,
+)
 
 @celery.task(name="process_submission")
 def process_submission(submission_id: int):
@@ -18,6 +21,8 @@ def process_submission(submission_id: int):
         sub.status, sub.error = "processing", None
         db.commit()
         for p in sub.pages:
+            print(f"Cropping page {p.idx} of submission {submission_id}")
+            print(f"Original path: {p}")
             crop_paper(p.original_path, p.cropped_path)
         result = grade_pages([p.cropped_path for p in sub.pages], sub.exam.marking_scheme, sub.exam.total_marks)
         save_raw(sub.id, result)
@@ -28,10 +33,15 @@ def process_submission(submission_id: int):
         render(sub)
         sub.status = "done"
         db.commit()
+    
     except Exception as e:
         db.rollback()
+
         sub = db.get(Submission, submission_id)
-        sub.status, sub.error = "failed", str(e)[:500]
-        db.commit()
-    finally:
-        db.close()
+
+        if sub:
+            sub.status = "failed"
+            sub.error = str(e)[:500]
+            db.commit()
+
+        raise

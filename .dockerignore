@@ -1,0 +1,12 @@
+.git
+.github
+**/.env
+**/.venv
+**/venv
+**/node_modules
+**/__pycache__
+**/*.py[cod]
+backend/uploads
+backend/*.db
+frontend/dist
+**/*cloudflared-windows-amd64.exe

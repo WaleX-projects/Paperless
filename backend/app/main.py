@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 from pathlib import Path
 from fastapi import Depends, FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
@@ -14,7 +15,24 @@ from .tasks import process_submission
 
 Base.metadata.create_all(engine)
 app = FastAPI(title="Exam Grader")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        origin.strip()
+        for origin in os.getenv(
+            "CORS_ORIGINS",
+            "http://localhost:5173,http://localhost:8080,https://assign-baseline-rejected-resource.trycloudflare.com/",
+        ).split(",")
+        if origin.strip()
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+
+@app.get("/health")
+def health():
+    return {"status": "healthy"}
 
 
 class ExamIn(BaseModel):
@@ -57,13 +75,14 @@ def list_exams(db: Session = Depends(get_db)):
 @app.delete("/exams/{exam_id}", status_code=204)
 def delete_exam(exam_id: int, db: Session = Depends(get_db)):
     e = db.get(Exam, exam_id) or HTTPException(404)
-    if isinstance(e, HTTPException): raise e
-    db.delete(e); db.commit()
+    if isinstance(e, HTTPException):
+        raise e
+    db.delete(e) 
+    db.commit()
 
 
 @app.post("/exams/{exam_id}/submissions", status_code=202)
-async def upload(exam_id: int, files: list[UploadFile] = File(...), student_name: str | None = Form(None),
-                 db: Session = Depends(get_db)):
+async def upload(exam_id: int, files: list[UploadFile] = File(...), student_name: str | None = Form(None),db: Session = Depends(get_db)):
     if not db.get(Exam, exam_id):
         raise HTTPException(404, "Exam not found")
     if any(not (f.content_type or "").startswith("image/") for f in files):

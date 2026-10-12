@@ -68,3 +68,5 @@ def annotate(src: str, dst: str, marks: list[dict]) -> None:
         label = f"{aw:g}/{mx:g}"
         cv2.putText(img, label, (x + s, y + s // 3), cv2.FONT_HERSHEY_SIMPLEX, s / 32, red if aw < mx else green, max(1, th // 2), cv2.LINE_AA)
     cv2.imwrite(dst, img, [cv2.IMWRITE_JPEG_QUALITY, 90])
+
+
